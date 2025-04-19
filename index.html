@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokemon Catcher</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles (same as before) */
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; /* Prevent scrollbars */
+            background-color: #f0f0f0; /* Light gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-h: 100vh;
+            color: #333;
+        }
+        #game-area {
+            width: 90vw; /* Responsive width */
+            max-width: 800px; /* Max width */
+            height: 70vh; /* Responsive height */
+            max-height: 600px; /* Max height */
+            border: 3px solid #4a5568; /* Darker border */
+            position: relative;
+            overflow: hidden; /* Keep elements inside */
+            background-color: #e2e8f0; /* Lighter background for game area */
+            background-image: url('https://placehold.co/800x600/e2e8f0/cbd5e0?text=Catch+Area'); /* Placeholder background */
+            background-size: cover;
+            background-position: center;
+            border-radius: 1rem; /* Rounded corners */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+        }
+        #pokemon-sprite {
+            position: absolute;
+            width: 80px; /* Size of the pokemon */
+            height: 80px;
+            cursor: pointer;
+            image-rendering: pixelated; /* Keep pixel art crisp */
+            user-select: none; /* Prevent image selection */
+            -webkit-user-drag: none; /* Prevent image dragging */
+        }
+        #crosshair {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border: 2px dashed #ef4444; /* Red dashed border */
+            border-radius: 50%; /* Circular */
+            box-sizing: border-box;
+            pointer-events: none; /* Allow clicks through */
+            transform: translate(-50%, -50%); /* Center on position */
+            z-index: 10; /* Ensure it's above pokemon */
+        }
+        .pokeball-throw {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-color: rgba(255, 0, 0, 0.7); /* Semi-transparent red */
+            border-radius: 50%;
+            border: 2px solid white;
+            transform: translate(-50%, -50%) scale(0);
+            animation: throwAnim 0.3s ease-out;
+            z-index: 15; /* Above crosshair */
+            pointer-events: none;
+        }
+        @keyframes throwAnim {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.5); opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+        }
+        .catch-effect {
+            position: absolute;
+            width: 80px; /* Match pokemon size */
+            height: 80px;
+            border: 5px solid gold;
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            animation: catchAnim 0.5s ease-out;
+            z-index: 5;
+            pointer-events: none;
+        }
+        @keyframes catchAnim {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.7; }
+            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+        }
+        .game-font {
+            font-family: 'Press Start 2P', cursive;
+        }
+        .control-icon {
+            display: inline-block;
+            padding: 0.5rem;
+            border: 2px solid #4a5568;
+            border-radius: 0.5rem;
+            margin: 0 0.25rem;
+            min-width: 40px; /* Ensure consistent width */
+            text-align: center;
+            background-color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .spacebar-icon {
+            padding: 0.5rem 2rem; /* Wider for spacebar */
+        }
+        .game-button {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #4ade80; /* Green */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            border: none;
+            border-bottom: 4px solid #16a34a; /* Darker green border */
+            cursor: pointer;
+            transition: all 0.1s ease-in-out;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .game-button:hover {
+            background-color: #22c55e; /* Slightly darker green on hover */
+            transform: translateY(-2px); /* Slight lift */
+            box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+        }
+        .game-button:active {
+            transform: translateY(1px); /* Push down */
+            border-bottom-width: 2px; /* Reduce border */
+            box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col justify-center items-center min-h-screen p-4">
+
+    <div id="game-container" class="bg-white p-6 rounded-lg shadow-xl text-center max-w-4xl w-full">
+
+        <div id="menu-screen">
+            <h1 class="text-4xl font-bold mb-6 game-font text-blue-600">Pokemon Catcher</h1>
+            <p class="mb-8 text-lg text-gray-700">Catch 'em all before time runs out!</p>
+            <button id="start-button" class="game-button">Start Game</button>
+        </div>
+
+        <div id="game-screen" class="hidden">
+            <div class="flex justify-between items-center mb-4 px-2">
+                <div class="text-xl game-font">Score: <span id="score" class="font-bold text-green-600">0</span></div>
+                <div class="text-xl game-font">Time: <span id="timer" class="font-bold text-red-600">30</span>s</div>
+            </div>
+            <div id="game-area">
+                <img id="pokemon-sprite" src="https://placehold.co/80x80/e2e8f0/e2e8f0?text=_" alt="Pokemon" class="hidden">
+                <div id="crosshair" style="left: 50%; top: 50%;"></div>
+            </div>
+            <div id="message-area" class="mt-2 h-6 text-center game-font text-sm text-purple-600"></div> </div>
+
+        <div id="game-over-screen" class="hidden">
+            <h2 class="text-3xl font-bold mb-4 game-font text-red-600">Game Over!</h2>
+            <p class="text-2xl mb-6 game-font">Final Score: <span id="final-score" class="font-bold text-green-600">0</span></p>
+            <button id="restart-button" class="game-button">Play Again?</button>
+        </div>
+
+        <div id="controls-display" class="mt-6 p-4 bg-gray-200 rounded-lg shadow-inner">
+            <h3 class="text-lg font-semibold mb-3 game-font text-gray-800">Controls</h3>
+            <div class="flex justify-center items-center space-x-4">
+                <div>
+                    <span class="control-icon game-font">▲</span>
+                    <div class="flex justify-center">
+                        <span class="control-icon game-font">◀</span>
+                        <span class="control-icon game-font">▼</span>
+                        <span class="control-icon game-font">▶</span>
+                    </div>
+                    <p class="text-xs mt-1 text-gray-600 game-font">Move Target</p>
+                </div>
+                <div class="text-center">
+                    <span class="control-icon spacebar-icon game-font">SPACE</span>
+                    <p class="text-xs mt-1 text-gray-600 game-font">Throw Ball / Start</p> </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const menuScreen = document.getElementById('menu-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const startButton = document.getElementById('start-button');
+        const restartButton = document.getElementById('restart-button');
+        const scoreDisplay = document.getElementById('score');
+        const timerDisplay = document.getElementById('timer');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const gameArea = document.getElementById('game-area');
+        const pokemonSprite = document.getElementById('pokemon-sprite');
+        const crosshair = document.getElementById('crosshair');
+        const messageArea = document.getElementById('message-area');
+
+        // --- Game Constants ---
+        const GAME_DURATION = 30;
+        const POKEMON_SIZE = 80;
+        const CROSSHAIR_SIZE = 50;
+        const BASE_POKEMON_SPEED = 2;
+        const RARE_POKEMON_SPEED_MULTIPLIER = 1.8;
+        const RARE_POKEMON_ID_THRESHOLD = 600;
+        const BASE_SCORE = 10;
+        const RARE_SCORE_MULTIPLIER = 5;
+        const MAX_POKEMON_ID = 1025;
+        const CROSSHAIR_ACCELERATION = 0.8;
+        const CROSSHAIR_MAX_SPEED = 10;
+        const CROSSHAIR_DAMPING = 0.90;
+
+        // --- Game State Variables ---
+        let score = 0;
+        let timeLeft = GAME_DURATION;
+        let timerInterval = null;
+        let gameLoopInterval = null;
+        let currentPokemon = {
+            id: null, name: '', spriteUrl: '',
+            x: 0, y: 0, vx: 0, vy: 0,
+            speed: BASE_POKEMON_SPEED, isRare: false
+        };
+        let crosshairPos = { x: 0, y: 0 };
+        let crosshairVel = { x: 0, y: 0 };
+        let keysPressed = {};
+        let isGameOver = true; // Start in a "game over" state (menu)
+        let isFetchingPokemon = false;
+
+        // --- Initialization ---
+        function init() {
+            const gameAreaRect = gameArea.getBoundingClientRect();
+            crosshairPos.x = gameAreaRect.width / 2;
+            crosshairPos.y = gameAreaRect.height / 2;
+            updateCrosshairPosition();
+            menuScreen.classList.remove('hidden');
+            gameScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            isGameOver = true; // Explicitly set on init
+        }
+
+        // --- Event Listeners ---
+        startButton.addEventListener('click', startGame);
+        restartButton.addEventListener('click', startGame);
+        document.addEventListener('keydown', handleKeyDown);
+        document.addEventListener('keyup', handleKeyUp);
+
+        // --- Game Logic Functions ---
+
+        function startGame() {
+            // Prevent starting if already starting or actively playing
+            if (isFetchingPokemon || !isGameOver) return;
+
+            console.log("Starting game...");
+            score = 0;
+            timeLeft = GAME_DURATION;
+            isGameOver = false; // Game is now active
+            isFetchingPokemon = false;
+            keysPressed = {};
+            crosshairVel = { x: 0, y: 0 };
+            scoreDisplay.textContent = score;
+            timerDisplay.textContent = timeLeft;
+            messageArea.textContent = '';
+
+            menuScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            pokemonSprite.classList.add('hidden');
+
+            const gameAreaRect = gameArea.getBoundingClientRect();
+            crosshairPos.x = gameAreaRect.width / 2;
+            crosshairPos.y = gameAreaRect.height / 2;
+            updateCrosshairPosition();
+
+            startTimer();
+            spawnPokemon();
+            startGameLoop();
+        }
+
+        function endGame() {
+            console.log("Ending game...");
+            isGameOver = true; // Game is no longer active
+            clearInterval(timerInterval);
+            stopGameLoop();
+            pokemonSprite.classList.add('hidden');
+
+            finalScoreDisplay.textContent = score;
+            gameScreen.classList.add('hidden');
+            gameOverScreen.classList.remove('hidden');
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function startGameLoop() {
+            if (gameLoopInterval) return;
+            console.log("Starting game loop...");
+            function loop() {
+                if (isGameOver) {
+                    console.log("Game over flag set, stopping loop.");
+                    gameLoopInterval = null;
+                    return;
+                }
+                updateCrosshairMovement();
+                movePokemon();
+                updateCrosshairPosition();
+                gameLoopInterval = requestAnimationFrame(loop);
+            }
+            gameLoopInterval = requestAnimationFrame(loop);
+        }
+
+        function stopGameLoop() {
+             console.log("Stopping game loop explicitly...");
+             if (gameLoopInterval) {
+                 cancelAnimationFrame(gameLoopInterval);
+                 gameLoopInterval = null;
+             }
+        }
+
+        function updateCrosshairMovement() {
+            let targetVelX = 0;
+            let targetVelY = 0;
+
+            if (keysPressed['ArrowUp'])    targetVelY = -CROSSHAIR_MAX_SPEED;
+            if (keysPressed['ArrowDown'])  targetVelY =  CROSSHAIR_MAX_SPEED;
+            if (keysPressed['ArrowLeft'])  targetVelX = -CROSSHAIR_MAX_SPEED;
+            if (keysPressed['ArrowRight']) targetVelX =  CROSSHAIR_MAX_SPEED;
+
+            if (keysPressed['ArrowUp'] || keysPressed['ArrowDown']) {
+                 crosshairVel.y += (targetVelY > crosshairVel.y ? 1 : (targetVelY < crosshairVel.y ? -1 : 0)) * CROSSHAIR_ACCELERATION;
+            } else {
+                crosshairVel.y *= CROSSHAIR_DAMPING;
+            }
+
+             if (keysPressed['ArrowLeft'] || keysPressed['ArrowRight']) {
+                 crosshairVel.x += (targetVelX > crosshairVel.x ? 1 : (targetVelX < crosshairVel.x ? -1 : 0)) * CROSSHAIR_ACCELERATION;
+            } else {
+                crosshairVel.x *= CROSSHAIR_DAMPING;
+            }
+
+            const currentSpeed = Math.sqrt(crosshairVel.x * crosshairVel.x + crosshairVel.y * crosshairVel.y);
+            if (currentSpeed > CROSSHAIR_MAX_SPEED) {
+                const scale = CROSSHAIR_MAX_SPEED / currentSpeed;
+                crosshairVel.x *= scale;
+                crosshairVel.y *= scale;
+            }
+
+            if (Math.abs(crosshairVel.x) < 0.1) crosshairVel.x = 0;
+            if (Math.abs(crosshairVel.y) < 0.1) crosshairVel.y = 0;
+
+            crosshairPos.x += crosshairVel.x;
+            crosshairPos.y += crosshairVel.y;
+
+            const gameAreaRect = gameArea.getBoundingClientRect();
+            if (crosshairPos.x < 0) {
+                crosshairPos.x = 0;
+                crosshairVel.x = 0;
+            } else if (crosshairPos.x > gameAreaRect.width) {
+                crosshairPos.x = gameAreaRect.width;
+                crosshairVel.x = 0;
+            }
+            if (crosshairPos.y < 0) {
+                crosshairPos.y = 0;
+                crosshairVel.y = 0;
+            } else if (crosshairPos.y > gameAreaRect.height) {
+                crosshairPos.y = gameAreaRect.height;
+                crosshairVel.y = 0;
+            }
+        }
+
+
+        async function spawnPokemon() {
+            // Added check: Don't spawn if game ended during fetch attempt
+            if (isFetchingPokemon || isGameOver) return;
+            isFetchingPokemon = true;
+            pokemonSprite.classList.add('hidden');
+            messageArea.textContent = 'Loading...';
+
+            try {
+                const randomId = Math.floor(Math.random() * MAX_POKEMON_ID) + 1;
+                console.log(`Fetching Pokemon ID: ${randomId}`);
+                const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${randomId}`);
+                if (!response.ok) {
+                    if (response.status === 404) {
+                         console.warn(`Pokemon ID ${randomId} not found. Trying again.`);
+                         isFetchingPokemon = false;
+                         if (!isGameOver) spawnPokemon(); // Retry only if game still running
+                         return;
+                    }
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                 // Added check: If game ended while fetching, don't process
+                 if (isGameOver) {
+                     console.log("Game ended during fetch, discarding Pokemon:", data.name);
+                     isFetchingPokemon = false;
+                     return;
+                 }
+
+                console.log("Pokemon data fetched:", data.name);
+                currentPokemon.id = data.id;
+                currentPokemon.name = data.name;
+                currentPokemon.spriteUrl = data.sprites.other?.['official-artwork']?.front_default || data.sprites.front_default;
+                 if (!currentPokemon.spriteUrl) {
+                    currentPokemon.spriteUrl = `https://placehold.co/${POKEMON_SIZE}x${POKEMON_SIZE}/cccccc/333333?text=N/A`;
+                     console.warn(`No sprite found for Pokemon ID: ${randomId}`);
+                }
+
+                currentPokemon.isRare = data.id > RARE_POKEMON_ID_THRESHOLD;
+                currentPokemon.speed = currentPokemon.isRare ? BASE_POKEMON_SPEED * RARE_POKEMON_SPEED_MULTIPLIER : BASE_POKEMON_SPEED;
+
+                const gameAreaRect = gameArea.getBoundingClientRect();
+                currentPokemon.x = Math.random() * (gameAreaRect.width - POKEMON_SIZE);
+                currentPokemon.y = Math.random() * (gameAreaRect.height - POKEMON_SIZE);
+
+                const angle = Math.random() * 2 * Math.PI;
+                currentPokemon.vx = Math.cos(angle) * currentPokemon.speed;
+                currentPokemon.vy = Math.sin(angle) * currentPokemon.speed;
+
+                pokemonSprite.src = currentPokemon.spriteUrl;
+                pokemonSprite.style.left = `${currentPokemon.x}px`;
+                pokemonSprite.style.top = `${currentPokemon.y}px`;
+                pokemonSprite.alt = currentPokemon.name;
+                pokemonSprite.onerror = () => {
+                    console.error(`Failed to load sprite: ${currentPokemon.spriteUrl}`);
+                    pokemonSprite.src = `https://placehold.co/${POKEMON_SIZE}x${POKEMON_SIZE}/cccccc/999999?text=Error`;
+                     pokemonSprite.classList.remove('hidden');
+                     messageArea.textContent = 'Error loading sprite!';
+                     isFetchingPokemon = false;
+                     setTimeout(() => { if (!isGameOver) spawnPokemon(); }, 2000);
+                };
+                pokemonSprite.onload = () => {
+                    // Added check: Only show if game is still running
+                    if (!isGameOver) {
+                        pokemonSprite.classList.remove('hidden');
+                        messageArea.textContent = currentPokemon.isRare ? 'A rare Pokemon appeared!' : '';
+                        console.log(`Pokemon ${currentPokemon.name} spawned.`);
+                    } else {
+                         console.log("Game ended before sprite loaded for:", currentPokemon.name);
+                    }
+                     isFetchingPokemon = false;
+                };
+
+            } catch (error) {
+                console.error("Failed to fetch Pokemon:", error);
+                 // Added check: Only show error/retry if game is running
+                 if (!isGameOver) {
+                    messageArea.textContent = 'Error loading Pokemon!';
+                    setTimeout(() => {
+                        isFetchingPokemon = false;
+                        if (!isGameOver) spawnPokemon();
+                    }, 2000);
+                 } else {
+                     isFetchingPokemon = false; // Still need to reset this flag
+                 }
+            }
+        }
+
+
+        function movePokemon() {
+            if (isGameOver || pokemonSprite.classList.contains('hidden') || isFetchingPokemon) return;
+
+            const gameAreaRect = gameArea.getBoundingClientRect();
+            currentPokemon.x += currentPokemon.vx;
+            currentPokemon.y += currentPokemon.vy;
+
+            if (currentPokemon.x <= 0 || currentPokemon.x + POKEMON_SIZE >= gameAreaRect.width) {
+                currentPokemon.vx *= -1;
+                currentPokemon.x = Math.max(0, Math.min(currentPokemon.x, gameAreaRect.width - POKEMON_SIZE));
+            }
+            if (currentPokemon.y <= 0 || currentPokemon.y + POKEMON_SIZE >= gameAreaRect.height) {
+                currentPokemon.vy *= -1;
+                currentPokemon.y = Math.max(0, Math.min(currentPokemon.y, gameAreaRect.height - POKEMON_SIZE));
+            }
+
+            pokemonSprite.style.left = `${currentPokemon.x}px`;
+            pokemonSprite.style.top = `${currentPokemon.y}px`;
+        }
+
+        // --- MODIFIED: handleKeyDown checks game state for spacebar ---
+        function handleKeyDown(event) {
+            const isSpacebar = event.key === ' ' || event.key === 'Spacebar';
+
+            if (isSpacebar) {
+                event.preventDefault(); // Prevent scrolling regardless of state
+                if (isGameOver) {
+                    // If game is over (menu or game over screen), spacebar starts the game
+                    startGame();
+                } else {
+                    // If game is active, spacebar throws pokeball
+                    throwPokeball();
+                }
+                return; // Handled spacebar, exit function
+            }
+
+            // Handle arrow keys only if the game is active
+            if (!isGameOver) {
+                switch (event.key) {
+                    case 'ArrowUp':
+                    case 'ArrowDown':
+                    case 'ArrowLeft':
+                    case 'ArrowRight':
+                        event.preventDefault(); // Prevent window scrolling
+                        keysPressed[event.key] = true;
+                        break;
+                    // No default needed, ignore other keys during gameplay
+                }
+            }
+            // Ignore other keys or arrow keys when game is not active
+        }
+
+        // --- MODIFIED: handleKeyUp only acts if game is active ---
+        function handleKeyUp(event) {
+             if (isGameOver) return; // Ignore keyup if game over
+
+            switch (event.key) {
+                case 'ArrowUp':
+                case 'ArrowDown':
+                case 'ArrowLeft':
+                case 'ArrowRight':
+                    keysPressed[event.key] = false;
+                    break;
+                // No default needed
+            }
+        }
+
+
+        function updateCrosshairPosition() {
+            crosshair.style.left = `${crosshairPos.x}px`;
+            crosshair.style.top = `${crosshairPos.y}px`;
+        }
+
+        function throwPokeball() {
+            // Added check: ensure game is not over AND pokemon is visible
+            if (isGameOver || pokemonSprite.classList.contains('hidden') || isFetchingPokemon) return;
+
+            console.log("Throwing Pokeball!");
+
+            const ballEffect = document.createElement('div');
+            ballEffect.className = 'pokeball-throw';
+            ballEffect.style.left = `${crosshairPos.x}px`;
+            ballEffect.style.top = `${crosshairPos.y}px`;
+            gameArea.appendChild(ballEffect);
+            setTimeout(() => ballEffect.remove(), 300);
+
+            const crosshairCenterX = crosshairPos.x;
+            const crosshairCenterY = crosshairPos.y;
+            const pokemonLeft = currentPokemon.x;
+            const pokemonRight = currentPokemon.x + POKEMON_SIZE;
+            const pokemonTop = currentPokemon.y;
+            const pokemonBottom = currentPokemon.y + POKEMON_SIZE;
+
+            if (crosshairCenterX > pokemonLeft && crosshairCenterX < pokemonRight &&
+                crosshairCenterY > pokemonTop && crosshairCenterY < pokemonBottom) {
+                console.log(`Caught ${currentPokemon.name}!`);
+                const points = currentPokemon.isRare ? BASE_SCORE * RARE_SCORE_MULTIPLIER : BASE_SCORE;
+                score += points;
+                scoreDisplay.textContent = score;
+                messageArea.textContent = `Caught ${currentPokemon.name}! +${points}pts`;
+
+                const catchEffect = document.createElement('div');
+                catchEffect.className = 'catch-effect';
+                catchEffect.style.left = `${currentPokemon.x + POKEMON_SIZE / 2}px`;
+                catchEffect.style.top = `${currentPokemon.y + POKEMON_SIZE / 2}px`;
+                gameArea.appendChild(catchEffect);
+                setTimeout(() => catchEffect.remove(), 500);
+
+                pokemonSprite.classList.add('hidden');
+                setTimeout(() => {
+                     // Added check: Only spawn if game hasn't ended in the meantime
+                     if (!isGameOver) spawnPokemon();
+                }, 300);
+
+            } else {
+                 console.log("Missed!");
+                 messageArea.textContent = 'Missed!';
+                 setTimeout(() => {
+                     // Only clear the "Missed!" message if it's still there
+                     if (messageArea.textContent === 'Missed!') {
+                         messageArea.textContent = '';
+                     }
+                 }, 1000);
+            }
+        }
+
+        // --- Start the application ---
+        init();
+
+    </script>
+
+</body>
+</html>
